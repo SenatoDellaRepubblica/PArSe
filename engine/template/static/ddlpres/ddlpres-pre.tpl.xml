@@ -1,0 +1,21 @@
+<dl:Proprieta>
+    <dl:Protocollo data="{{pre_data_trasmissione_impl}}" errata="0" idAtto="" idTesto="" legislatura="{{dic_prop['leg']}}" numero="{{dic_prop['num_ddl']}}" ristampa="0" subNumero=""/>
+</dl:Proprieta>
+<dl:Frontespizio idPart="FRONT01" inIndice="FRONTESPIZIO">
+    <dl:NumeroAtto numero="{{dic_ddlpres['numero_atto']}}"/>
+    <dl:TipoAtto>DISEGNO DI LEGGE</dl:TipoAtto>
+    <dl:Iter>
+        <dl:Fase ramo="Senato">
+            <dl:Presentazione>
+                <dl:Iniziativa tipo="{{dic_ddlpres['iniziativa']}}">{{dic_ddlpres['iniziativa_incipt']}} {# d'iniziativa del Senatore #}
+                    {% for pre in dic_ddlpres['lista_presentatori'] -%}
+                    <dl:Presentatore incarico="{{pre.tipo}}" nome="{{pre.nome}}"/>
+                    {%- endfor %}
+                </dl:Iniziativa>
+                <dl:Trasmissione data="{{dic_ddlpres['data_trasmissione_impl']}}">{{dic_ddlpres['incipit_data_trasmissione_espl']}}{{dic_ddlpres['data_trasmissione_espl']}}</dl:Trasmissione>
+            </dl:Presentazione>
+        </dl:Fase>
+    </dl:Iter>
+    <dl:Titolo>{{dic_ddlpres['titolo']}}</dl:Titolo>
+</dl:Frontespizio>
+<dl:RelPres idPart="" inIndice="">{{dic_ddlpres['relazione']}}</dl:RelPres>

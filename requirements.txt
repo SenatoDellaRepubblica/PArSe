@@ -1,0 +1,14 @@
+Flask==1.1.4 # non fare upgrade alla 2 perché incompatibile con flask-restx
+Flask-Cors==3.0.10
+flask-restx==0.4.0
+Flask-HTTPAuth==4.4.0
+gevent==21.1.2
+beautifulsoup4==4.9.3
+requests==2.26.0
+lxml==4.6.3
+Jinja2==2.11.3
+chardet==4.0.0
+pdfminer.six==20201018
+python-docx==0.8.11
+dom==0.9
+py-eureka-client==0.10.0

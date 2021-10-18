@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="latin1">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <link rel="icon" href="res/favicon.ico">
+
+    <title>PArSe: Parser Articolato Senato</title>
+
+    <!-- Bootstrap -->
+
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+
+    <link href="res/css/theme.css" rel="stylesheet">
+    <link href="res/css/mine.css" rel="stylesheet">
+    <link rel="stylesheet" href="res/css/agate.css">
+
+    <script src="res/js/jquery-3.1.1.min.js"></script>
+
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+
+    <script src="res/js/highlight.pack.js"></script>
+    <script src="res/js/vkbeautify.js"></script>
+    <script src="res/js/xmltree.js"></script>
+
+    <script>hljs.initHighlightingOnLoad();</script>
+    <!-- script src="https://cdn.ckeditor.com/4.7.0/standard/ckeditor.js"></script> -->
+    <script src="res/js/script.js"></script>
+
+</head>
+<!-- http://codehandbook.org/python-flask-jquery-ajax-post/ -->
+
+<body role="document">
+
+<div class="container">
+
+    <div id="title" class="jumbotron">
+        <h2>PArSe: Parser Articolato Senato</h2>
+        <h3>Senato della Repubblica</h3>
+        <h4 style="text-align: center">versione 1.1</h4>
+    </div>
+
+
+    <!-- Riga con il pannello a sx per il testo in chiaro e il pannello di dx per il testo parsato -->
+    <div id="contenuto" class="row" style="height: 370px">
+
+        <div class="col-md-6">
+            <div class="panel panel-primary">
+                <b>
+                    <select id="samples" name="samples" style="width: 100%">
+                    </select>
+                </b>
+            </div>
+            <div class="panel panel-primary">
+                <div class="panel-body">
+                        <textarea id="sorgente" type="text" name="testo" class="textarea"
+                                  style="padding: 10px;height: 330px"></textarea>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="panel panel-primary">
+                <div class="panel-body">
+                    <pre><code class="xml hljs" id="xml" style="width: 100%;height: 350px"></code></pre>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Pannello con i bottoni -->
+    <div class="row">
+        <div class="col-md-12">
+                <div class="col-md-6 text-center">
+                    <button id="btn_carica" class="btn btn-primary" type="button">Carica Testo</button>
+                    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal-text">Visualizza</button>
+                    <button id="btn_pulisce" class="btn btn-default" type="button">Pulisci</button>
+                    <button id="btn_trasforma" class="btn btn-primary" type="button">Trasforma</button>
+                </div>
+
+                <div class="col-md-6 text-center">
+                    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal-p">SenXML (Plain)</button>
+                    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal-g">SenXML (Tree)</button>
+                    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal-akn-l">Akoma (Plain)</button>
+                    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal-akn">Akoma (Tree)</button>
+                </div>
+
+                <!--
+                <div class="col-md-4 text-center">
+                    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#myModal-ckeditor">Edita</button>
+                </div>
+                -->
+
+            </div>
+        </div>
+
+        <!-- Pannello con gli Alert di sistema -->
+        <div class="row">
+            <div class="col-md-6">
+                <div id="carica_alert" class="alert alert-success fade in" style="display:none;">
+                    <a href="#" class="close" data-dismiss="alert">&times;</a>
+                    <strong>Ok!</strong> Il testo di prova è stato caricato
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div id="parse_alert" class="alert alert-success fade in" style="display:none;">
+                    <a href="#" class="close" data-dismiss="alert">&times;</a>
+                    <strong>Ok!</strong> Il testo è stato trasformato
+                </div>
+                <div id="parse_alert_ko" class="alert alert-danger fade in" style="display:none;z-index: 999;">
+                    <a href="#" class="close" data-dismiss="alert">&times;</a>
+                    <strong>Ko!</strong> Problemi durante la trasformazione
+                </div>
+            </div>
+        </div>
+
+        <!-- Pannello con la riga dei LOG -->
+
+        <div id="log" class="row">
+            <div class="col-md-12">
+                <div class="panel panel-primary">
+                    <div class="panel-body">
+                            <pre><code class="xml hljs" id="stderr"
+                                       style="width: 100%; height: 120px;">Log del parsing...</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+
+    <!-- Finestre modali per i PopUp -->
+
+    <!-- Modal per XML Senato Grafico -->
+    <div id="myModal-g" class="modal fade" role="dialog">
+        <div class="modal-dialog" style="width: 80%">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Articolato in formato "XML Senato (grafico)"</h4>
+                </div>
+                <div class="modal-body">
+                    <!-- <pre><code class="xml hljs" id="xml-popup" style="height: 70vh"></code></pre> -->
+                    <pre><code id="xml-popup" style="height: 70vh; background: lightgrey"></code></pre>
+
+                </div>
+                <div class="modal-footer">
+                    <a download="parsedtext.xml" id="downloadlink" class="btn btn-primary" role="button">Download</a>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal per XML Senato Piatto -->
+    <div id="myModal-p" class="modal fade" role="dialog">
+        <div class="modal-dialog" style="width: 80%">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Articolato in formato "XML Senato (Piatto)"</h4>
+                </div>
+                <div class="modal-body">
+                    <pre><code class="xml hljs" id="xml-popup-p" style="height: 70vh"></code></pre>
+                </div>
+                <div class="modal-footer">
+                    <a download="parsedtextp.xml" id="downloadlink-xmlp" class="btn btn-primary" role="button">Download</a>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal per AKN Highlight -->
+    <div id="myModal-akn-l" class="modal fade" role="dialog">
+        <div class="modal-dialog" style="width: 80%">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Articolato in formato Akoma Ntoso</h4>
+                </div>
+                <div class="modal-body">
+                    <pre><code class="xml hljs" id="akn-popup-l" style="height: 70vh"></code></pre>
+                </div>
+                <div class="modal-footer">
+                    <a download="parsedtext.akn.xml" id="downloadlink-akn" class="btn btn-primary"
+                       role="button">Download</a>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+
+    <!-- Modal per AKN Tree -->
+    <div id="myModal-akn" class="modal fade" role="dialog">
+        <div class="modal-dialog" style="width: 80%">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Articolato in formato Akoma Ntoso</h4>
+                </div>
+                <div class="modal-body">
+                    <!-- <pre><code class="xml hljs" id="xml-popup" style="height: 70vh"></code></pre> -->
+                    <pre><code id="akn-popup" style="height: 70vh; background: lightgrey"></code></pre>
+
+                </div>
+                <div class="modal-footer">
+                    <a download="parsedtext.aknxml" id="downloadlink-akn" class="btn btn-primary"
+                       role="button">Download</a>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal per Testo Piatto -->
+    <div id="myModal-text" class="modal fade" role="dialog">
+        <div class="modal-dialog" style="width: 80%">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Articolato in formato testo</h4>
+                </div>
+                <div class="modal-body">
+                    <pre><code class="txt hljs" id="txt-popup" style="height: 70vh"></code></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Modal CKEditor NON IN USO -->
+    <div id="myModal-ckeditor" class="modal fade" role="dialog">
+        <div class="modal-dialog" style="width: 80%">
+
+            <!-- Modal content-->
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal">&times;</button>
+                    <h4 class="modal-title">Editing XML</h4>
+                </div>
+                <div class="modal-body">
+                    <textarea name="editor1"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Chiudi</button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+
+</html>

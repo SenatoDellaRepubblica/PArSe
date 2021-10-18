@@ -1,0 +1,18 @@
+<?xml version="1.0"?><?xml-stylesheet href="bgt-typo.style" type="text/x-styler" media="editor" alternate="yes"?>
+<BGTDOC xmlns="http://www.senato.it/static/xml/def/1.0/bgt.html"
+        xmlns:t="http://www.senato.it/static/xml/def/1.0/anticatf.html"
+        xmlns:cm="http://www.senato.it/static/xml/def/1.0/common.html"
+        xmlns:a="http://www.senato.it/static/xml/def/1.0/articolato.html"
+        xmlns:dl="http://www.senato.it/static/xml/def/1.0/ddl.html"
+        xmlns:em="http://www.senato.it/static/xml/def/1.0/emend.html" xmlns:h="http://www.w3.org/1999/xhtml"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.senato.it/static/xml/def/1.0/bgt-typo.html file:///d:\notes6\data\XMLTest\XSD\bgt-typo.xsd">
+
+    <dl:DDLPRES idPart="" inIndice="">
+    {{prefazione}}
+    <a:Articolato idPart="" inIndice="Articolato">
+        <a:TitoloAtto>{{incipit_articolato}}</a:TitoloAtto>
+        {{articolato}}
+    </a:Articolato>
+    </dl:DDLPRES>
+</BGTDOC>

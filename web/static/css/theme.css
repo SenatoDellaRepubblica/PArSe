@@ -1,0 +1,100 @@
+body {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.row {
+    padding-top: 10px;
+}
+
+.theme-dropdown .dropdown-menu {
+  position: static;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.theme-showcase > p > .btn {
+  margin: 5px 0;
+}
+
+.theme-showcase .navbar .container {
+  width: auto;
+}
+
+/* Personalizzazioni del CSS */
+
+/* Sfondo del DDL */
+.jumbotron {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    background-color: #9b1818;
+    background-image: linear-gradient(to right, #6d3c3c 0, #bc3939 100%);
+    color: #ffffff;
+}
+
+/* Bordo dei box che contengono il TreeView e il documento */
+.panel-primary {
+  border-color: #9b1818;
+}
+
+/* Pannello che contiene il testo */
+.panel-body {
+  padding: 0;
+}
+
+/* Gradiente dentro al Pannello */
+.well {
+  margin-bottom: 0;
+}
+
+/* Barra di navigazione in Alto */
+.navbar-inverse {
+    /*background-image: linear-gradient(to right, #6d3c3c 0, #bc3939 100%);*/
+    width: 100%;
+    /*min-height: 12%;
+    border-bottom-color: #9b1818;
+    border-bottom-style: solid;
+    border-bottom-width: 6px;
+    */
+
+    margin: 0;
+    padding: 10px;
+    padding-left: 60.0%;
+    border-color: #9b1818;
+    background-color: #ffffff;
+    background-image: url("http://www.senato.it/img/popup/logo_popup.gif");
+    background-position: left top;
+    background-repeat: no-repeat;
+}
+
+/* Stile per la voce di menù sinistro selezionato*/
+li.list-group-item.node-tree.node-selected
+{
+    background-color: #9b1818 !important;
+}
+
+/* Stile per le scritte del menù: quando ci si passa sopra con mouse */
+.navbar-inverse .navbar-nav>li>a:hover {
+    color: #000000;
+}
+
+/* Stile per le scritte del menù: quando rimane il focus attivo */
+.navbar-inverse .navbar-nav>li>a:focus {
+    color: blue !important;
+}
+
+/* Stile del testo nel menù a cascata dei documenti */
+
+a.dropdown-toggle
+{
+    background: #ffffff none !important;
+}
+
+/* ----------------- NUOVI STILI ASSEGNATI ----------------------- */
+
+h2, h3, h4
+{
+    text-align: center;
+}

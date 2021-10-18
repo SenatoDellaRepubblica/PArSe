@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home Page SenArtoWebService</title>
+</head>
+<body>
+<H1>SenArtoWebService</H1>
+
+<H2>Lista dei servizi REST o file statici</H2>
+{% for s in services %}
+<ul>
+    <li><b>{{ s.url }}</b></li>
+    <ul>
+        <li>methods:    {{ s.methods }}</li>
+        <li>endpoint:   {{ s.endpoint}}</li>
+    </ul>
+</ul>
+{% endfor %}
+</body>
+</html>
