@@ -188,20 +188,24 @@ if __name__ == '__main__':
 
         env = os.environ['ENV']
         server_port = os.environ['SERVER_PORT']
-        if env == 'development':
-            """
-            Web server per lo sviluppo
-            """
-            # app.run(debug=True, host="0.0.0.0", port=5000, threaded = True, ssl_context=context)
-            app.run(debug=False, host="0.0.0.0", port=server_port, threaded=True)
-        elif env == 'production':
-            """
-            Utilizzo un server web con interfaccia WSGI (gevent ma si potrebbe anche mod_wsgi per Apache
-            """
-            http_server = WSGIServer(('', 5000), app)
-            http_server.serve_forever()
-        else:
-            app.logger.critical(f"Nessun ambiente di esecuzione impostato (ENV={env})")
 
-    except Exception as e:
-        app.logger.critical(e)
+    except KeyError as e:
+        app.logger.critical(f'La variabile di ambiente {e} non esiste.')
+        quit(1)
+
+    if env == 'development':
+        """
+        Web server per lo sviluppo
+        """
+        # app.run(debug=True, host="0.0.0.0", port=5000, threaded = True, ssl_context=context)
+        app.run(debug=False, host="0.0.0.0", port=server_port, threaded=True)
+    elif env == 'production':
+        """
+        Utilizzo un server web con interfaccia WSGI (gevent ma si potrebbe anche mod_wsgi per Apache
+        """
+        http_server = WSGIServer(('', 5000), app)
+        http_server.serve_forever()
+    else:
+        app.logger.critical(f"Nessun ambiente di esecuzione impostato (ENV={env})")
+
+
