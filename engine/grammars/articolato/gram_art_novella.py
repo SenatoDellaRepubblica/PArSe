@@ -79,7 +79,23 @@ class GramArticolatoInNovella(GA):
         }
     }
 
-    # Definizione degli stati
+    """    
+       Sintassi in BNF: eredita dalla BNF della grammatica dell'articolato
+
+       Stato            | Produzioni 
+       -----------------|-------------------------------------------------------------------------------------
+                        | Fase discendente                 | Fase ascendente
+       -----------------|-------------------------------------------------------------------------------------                                                 
+       S               := Capo | Articolo | Comma | Lettera 
+       Capo            := Rubrica_Capo | Articolo
+       Articolo        := Rubrica_Art | Comma              | Capo | E 
+       Comma           := Novella | Lettera                | Capo | Articolo | E
+       Lettera         := Novella | Numero                 | Capo | Articolo | Comma | E
+
+       ------------------------------------------------------------------------------------------------------    
+    """
+
+    # Definizione del DFA
     S = StatoStart()  # deve essere inzializzato qui
     S_Capo = GA.S_Capo
     S_Art = GA.S_Art

@@ -393,7 +393,7 @@ class ParserArticolato(object):
             Se sono arrivato in questo stato devo controllare se la molteplicità
             dello stato definita nella grammatica è multipla (ovvero >1). In questo caso
             allora devo fare il check con lo stesso stato in cui sono per inserirlo nelle possibili
-            transazioni
+            transizioni
             """
             # if curr_state is not S and curr_state.mul == INFINITE:
             if curr_state.mul == INFINITE:

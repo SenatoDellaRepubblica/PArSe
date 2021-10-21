@@ -1,5 +1,4 @@
 
-
 import re
 from engine.grammars.grams import GramForParser, TK_ATTR, Stato, INFINITE, StatoStart, StatoEnd, TK_EN
 import logging
@@ -30,11 +29,11 @@ class GramArticolato(GramForParser):
     REPL_CPART = fr'\g<{CPART}>'
 
     _REGEX_PREMISSIVI = r'0{0,5}'
-    # regex che individua la parte numerica di: articoli e di commi e i numeri
 
+    # regex che individua la parte numerica di: articoli e di commi e i numeri
     _INT_REGEX_NUM = fr'({_REGEX_PREMISSIVI}\d+\-?\w*(\.\d+)*)'
 
-    # ############## ESPRESSIONI REGOLARI: GRAMMATICA REGOLARE
+    # *********************** Grammatica regolare per gli stati ************************
 
     # Particella: Titolo
     REGEX_TITOLO = fr'(?P<{SPART}>(tit\.|titolo)\s*(?P<{CPART}>.+))'
@@ -139,7 +138,7 @@ class GramArticolato(GramForParser):
         }
     }
 
-    # Stati dell'Automa
+    # Definizione degli stati del DFA
 
     S = StatoStart()
     S_Titolo = Stato(TK_EN.TITOLO)
@@ -153,11 +152,28 @@ class GramArticolato(GramForParser):
     S_Nov = Stato(TK_EN.NOV, INFINITE)
     E = StatoEnd()
 
-    # Sintassi
+    """        
+        Sintassi in BNF
+    
+        Stato            | Produzioni 
+        -----------------|-------------------------------------------------------------------------------------
+                         | Fase discendente                 | Fase ascendente
+        -----------------|-------------------------------------------------------------------------------------                                                 
+        S               := Capo | Articolo | 
+        Capo            := Rubrica_Capo | Articolo
+        Rubrica_Capo    := Articolo
+        Rubrica_Art     := Comma
+        Articolo        := Rubrica_Art | Comma              | Capo | E 
+        Comma           := Novella | Lettera                | Capo | Articolo | E
+        Lettera         := Novella | Numero                 | Capo | Articolo | Comma | E
+        Numero          := Novella                          | Capo | Articolo | Comma | Lettera | E
+        Novella         :=                                  | Capo | Articolo | Comma | Lettera | Numero | E
+    
+        ------------------------------------------------------------------------------------------------------    
     """
-    - Ogni stato ha delle transizioni che vanno nei figli (fase discendente) e ritornano nei padri (fase di chiusura)
-    - Gli stati tra [S0,S1, ... Sn] sono le diverse transizione in S0 o in S1 o in Sn (quindi la virgola indica una disgiunzione
-    """
+
+    # Creazione DFA mediante sintassi definita in BNF
+
     S.goto([S_Capo, S_Art])
     S_Capo.goto([S_Capo_Rubr, S_Art])
     S_Capo_Rubr.goto(S_Art)

@@ -12,3 +12,8 @@ pdfminer.six==20201018
 python-docx==0.8.11
 dom==0.9
 py-eureka-client==0.10.0
+
+# requirements per la visualizzazione del DFA
+networkx==2.6.3
+networkx_viewer==0.3.0
+numpy==1.21.2

@@ -1,4 +1,3 @@
-
 import os
 import shutil
 import subprocess
@@ -14,6 +13,7 @@ import re
 
 from engine.misc.output import print_out_and_log
 from engine.grammars.grams import Stato
+from engine.grammars.articolato.gram_articolato import GramArticolato as GA
 import logging
 
 logger = logging.getLogger(__name__)
@@ -113,7 +113,7 @@ def sub_special_chars(xml: str) -> str:
     return xml.replace("&", "&amp;") \
         .replace("<", "&lt;") \
         .replace(">", "&gt;") \
-        .replace('\f','')
+        .replace('\f', '')
 
 
 def read_text_with_enc(full_file_name: str, src_encoding: str = None) -> str:
@@ -176,9 +176,15 @@ def show_automata(gram):
 
     try:
         import networkx as nx
-        from networkx_viewer import Viewer
     except ImportError:
         print_out_and_log('Modulo NetworkX non disponibile')
+        quit(1)
+
+    try:
+        import networkx_viewer
+    except ImportError:
+        print_out_and_log('Modulo NetworkX_Viewer non disponibile')
+        quit(1)
 
     G = nx.MultiGraph()
     visited_list = []
@@ -200,5 +206,9 @@ def show_automata(gram):
 
     automata = gram.get_automata()
     build_graph(automata)
-    app = Viewer(G)
+    app = networkx_viewer.Viewer(G)
     app.mainloop()
+
+
+if __name__ == '__main__':
+    show_automata(GA)
