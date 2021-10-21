@@ -15,10 +15,16 @@ Per eseguire il parser:
     `git clone https://github.com/SenatoDellaRepubblica/PArSe.git && cd PArSe`
 3. Installazione delle librerire richieste mediante pip per Python3
     `pip3 install -r requirements.txt`
-4. Per eseguire l'interfaccia Web
-    `python3 parse_web.py`
+4. Per eseguire l'interfaccia Web (sono necessarie delle variabili di ambiente)
+   * `ENV=development`
+   * `SERVER_PORT=127.0.0.1`
+   * `python3 parse_web.py`
 5. Per eseguire il parser a riga di comando
    `python3 parse_cli.py -h`
+
+## Live demo ##
+
+PArSe live: https://www.senato.it/japp/serv/parse/app
 
 ## Librerie esterne ##
 
