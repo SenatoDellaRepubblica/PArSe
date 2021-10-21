@@ -1,6 +1,5 @@
-
-
 import logging
+import os
 import traceback
 import logging.handlers
 
@@ -14,7 +13,8 @@ def set_log(level_log, log_filename = 'log.txt', noterminal = True):
     :return:
     """
 
-    # TODO: rivedere gestione del Log: invia sia in output che su console
+    os.makedirs(LOG_PATH, exist_ok=True)
+
     logging.getLogger().setLevel(level_log)
     log_format = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     #datefmt = '%m/%d/%Y %I:%M:%S %p'
