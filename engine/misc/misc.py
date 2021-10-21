@@ -14,6 +14,7 @@ import re
 from engine.misc.output import print_out_and_log
 from engine.grammars.grams import Stato
 from engine.grammars.articolato.gram_articolato import GramArticolato as GA
+from engine.grammars.articolato.gram_art_novella import GramArticolatoInNovella as GAN
 import logging
 
 logger = logging.getLogger(__name__)
@@ -211,4 +212,8 @@ def show_automata(gram):
 
 
 if __name__ == '__main__':
+    # mostra il DFA della grammatica della grammatica dell'articolato
     show_automata(GA)
+
+    # mostra il DFA della grammatica delle novelle
+    show_automata(GAN)
