@@ -80,30 +80,21 @@ class GramArticolatoInNovella(GA):
     }
 
     """    
-       Sintassi in BNF: eredita dalla BNF della grammatica dell'articolato
+       Sintassi in BNF: eredita la BNF della grammatica dell'articolato. Cambia solo la produzione da S
 
        Stato            | Produzioni 
        -----------------|-------------------------------------------------------------------------------------
                         | Fase discendente                 | Fase ascendente
        -----------------|-------------------------------------------------------------------------------------                                                 
        S               := Capo | Articolo | Comma | Lettera 
-       Capo            := Rubrica_Capo | Articolo
-       Articolo        := Rubrica_Art | Comma              | Capo | E 
-       Comma           := Novella | Lettera                | Capo | Articolo | E
-       Lettera         := Novella | Numero                 | Capo | Articolo | Comma | E
-
        ------------------------------------------------------------------------------------------------------    
     """
 
     # Definizione del DFA
     S = StatoStart()  # deve essere inzializzato qui
-    S_Capo = GA.S_Capo
-    S_Art = GA.S_Art
-    S_Comm = GA.S_Comm
-    S_Let = GA.S_Let
 
     # Variazione della grammatica
-    S.goto([S_Capo, S_Art, S_Comm, S_Let])
+    S.goto([GA.S_Capo, GA.S_Art, GA.S_Comm, GA.S_Let])
 
     @staticmethod
     def get_automata() -> Stato:
