@@ -1,16 +1,16 @@
-
 import logging
 import re
 import sys
 from typing import Type
 
-from config import SOGLIA_CHIUSURE, SOGLIA_MAX_RICORSIONE, DEBUG, DEBUG_ESTESO
+from config import SOGLIA_CHIUSURE, SOGLIA_MAX_RICORSIONE, DEBUG, DEBUG_ESTESO, MARKER_INIZIO_ARTICOLATO
 from engine.grammars.articolato.gram_art_novella import GramArticolatoInNovella
 from engine.grammars.articolato.gram_articolato import GramArticolato
 from engine.exceptions import ParserException
 from engine.misc.misc import pretty_print_xml
 from engine.misc.output import print_out_and_log
 from engine.grammars.grams import TK_ATTR, Stato, Transizione, INFINITE
+from engine.parser.parser_coda import CodaParser
 from engine.parser.parser_prefazione import PrefazioneParser
 from engine.template.tpl_mgr import art_in_senxml_tpl
 
@@ -129,11 +129,16 @@ class ParserArticolato(object):
             :return:
             """
             # return xml
-            pattern = fr'(?P<PRE><{self._GRA.NS}\w+>\s*?<{self._GRA.NUM}[^/]*/>)(?P<BODY>[^<]*)(?P<POST>(?=<{self._GRA.NS}\w+>)|</{self._GRA.NS}\w+>)'
 
             ret = xml
             delta = 0
-            matches = re.finditer(pattern, xml, flags=flags)
+
+            matches = re.finditer(
+                fr'(?P<PRE><{self._GRA.NS}[^>]*>\s*?<{self._GRA.NUM}\b[^>]*>.*?</{self._GRA.NUM}>(?:\s*<{self._GRA.RUBR}>[^<]*</{self._GRA.RUBR}>)?)' +
+                fr'(?P<BODY>[^<]*)' +
+                fr'(?P<POST>(?=<{self._GRA.NS}\w+>)|</{self._GRA.NS}\w+>)',
+                xml, flags=flags)
+
             for m in matches:
 
                 # mette gli H:P dentro al corpo di ALINEA e CORPO
@@ -179,31 +184,6 @@ class ParserArticolato(object):
 
             return ret
 
-        def insert_caporale_iniz_novella(xml: str,
-                                         flags=re.MULTILINE | re.IGNORECASE | re.DOTALL):
-            """
-            Inserisce il caporale iniziale nel primo H:P della novella
-
-            :param xml:
-            :param flags:
-            :return:
-            """
-
-            novelle = re.finditer(self._GRA.REGEX_NOVELLA_XML, xml, flags)
-            ret = xml
-            delta = 0
-            for m in novelle:
-                body_novella = m.group(self._GRA.CPART)
-                sub = re.sub(r'(.*?<h:p>)', r'\g<0>«', body_novella, count=1, flags=re.MULTILINE | re.IGNORECASE)
-                sub = fr'<{self._GRA.TOKEN_NOVELLA}>{sub}</{self._GRA.TOKEN_NOVELLA}>'
-
-                # fa il replace e mette in coda il risultato
-                start, end = m.start(1), m.end(1)
-                ret = ''.join([ret[:start + delta], sub, ret[end + delta:]])
-                delta += len(sub) - (end - start)
-
-            return ret
-
         # Individua il marcatore di inizio dell'articolato: euristika debole...
 
         prefazione, prefazione_parsed = '', ''
@@ -214,15 +194,15 @@ class ParserArticolato(object):
             idx = markers[-1].start()
             # prefazione = f"<![CDATA[{txt[:idx]}]]>"
             prefazione = txt[:idx]
+            resto_documento = CodaParser(txt[idx:]).cancella_coda('dl')
 
-            # TODO: inserire il parse della prefazione: primo DDLPRES
             parser_prefazione = PrefazioneParser(prefazione)
             prefazione_parsed = parser_prefazione.parse_prefazione()
-            xml = self._parse_articolato(self._GRA.get_automata(), txt_post=txt[idx:])
+            xml = self._parse_articolato(self._GRA.get_automata(), txt_post=resto_documento)
         else:
             # esegue il solo parsing dell'articolato
             print_out_and_log("Marcatore di inizio dell'articolato non trovato!")
-            xml = self._parse_articolato(self._GRA.get_automata(), txt_post=txt)
+            xml = self._parse_articolato(self._GRA.get_automata(), txt_post=CodaParser(txt).cancella_coda('ddl'))
 
         # esegue il flush della diagnostica
         sys.stderr.flush()
@@ -234,23 +214,22 @@ class ParserArticolato(object):
         # mette ALINEA e CORPO
         xml = put_alinea_corpo_h_p(xml, flags=flags)
 
-        # separa l'articolato vero e proprio dall'incipit del DDL
+        # separa l'articolato vero e proprio dall'incipit del DDL o del Decreto-Legge
         idx = xml.index("<") if "<" in xml else 0
-        incipit_art, xml_art = xml[:idx], xml[idx:]
-
-        # mette l'articolato nel template complessivo
-        # xml = art_in_senxml_tpl(incipit_art, xml_art, prefazione)
-        xml = art_in_senxml_tpl(incipit_art, xml_art, prefazione_parsed)
+        if mark == MARKER_INIZIO_ARTICOLATO["decretoLegge"]:
+            incipit_art = "DECRETO-LEGGE"
+            xml_art = xml[idx:]
+            xml = art_in_senxml_tpl("dl", incipit_art, xml_art, prefazione_parsed)
+        else:
+            incipit_art = xml[:idx].strip()
+            xml_art = xml[idx:]
+            xml = art_in_senxml_tpl("ddl", incipit_art, xml_art, prefazione_parsed)
 
         # formatta l'XML con un Pretty Print: attenzione inserisce new line
         xml = pretty_print_xml(xml)
 
         # sistema gli H:P eliminando gli spazi bianchi iniziali e finali dovuti al pretty print
         xml = bonifica_h_p(xml, flags=flags)
-
-        # sistema i caporali iniziali della novella marcata: va dopo il pretty print
-        if parse_novelle:
-            xml = insert_caporale_iniz_novella(xml, flags=flags)
 
         return xml
 
@@ -274,6 +253,10 @@ class ParserArticolato(object):
                           stack_stati_chiusura: list = None) -> str:
         """
         Automa interno che procede sugli stati definiti nella grammatica
+
+        È l'algoritmo principale di visita sul DFA definito.
+
+        Si mangiano caratteri e si decide in che stato andare a seconda della grammatica definita.
 
         :param stack_stati_chiusura: stack degli stati processari
         :param curr_state: stato corrente
@@ -356,7 +339,8 @@ class ParserArticolato(object):
             match = re.search(current_tk[TK_ATTR.REGEX], t_post, self._GRA.FLAGS)
             if match:
                 # compone la parte da sostituire
-                sub = current_tk[TK_ATTR.REPL_S].replace(self._GRA.REPL_CPART, match.group(self._GRA.CPART))
+                sub = current_tk[TK_ATTR.REPL_S].replace(self._GRA.REPL_CPART, match.group(self._GRA.CPART)).replace(
+                    self._GRA.REPL_SPART, match.group(self._GRA.SPART))
                 pre = t_post[:match.start(self._GRA.SPART)]
 
                 t_post = t_post[match.end(self._GRA.SPART):]
@@ -372,7 +356,7 @@ class ParserArticolato(object):
 
         def calc_next_trans(tr_list: list) -> Transizione:
             """
-            Determina qual'è lo stato più prossimo dalla posizione corrente
+            Determina qual è lo stato più prossimo dalla posizione corrente
             :param tr_list: lista delle transizioni possibili
             :return:
             """
@@ -383,6 +367,7 @@ class ParserArticolato(object):
                     chosen_t, min_txt = t, len(t.txt_pre)
             return chosen_t
 
+        # XXX: ================== PROCEDURA PRINCIPALE ==============================
         # inizializza le liste di supporto
         trans_list = []
 
@@ -418,7 +403,7 @@ class ParserArticolato(object):
                 if DEBUG:
                     print_out_and_log(f'==> Next token matched: "{str(next_trans)}"')
 
-                # determina la chiusura della transazione
+                # determina la chiusura della transizione
                 next_trans.chiusura = get_chiusura_stato(next_trans.stato_dst)
 
                 """

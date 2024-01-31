@@ -1,7 +1,7 @@
 # PArSe: Parser Articolato Senato #
 
 [![License](https://img.shields.io/badge/license-GPL3-green)](https://.../LICENSE)
-[![Build](https://img.shields.io/badge/build-1.1-yellowgreen)](https://github.com/SenatoDellaRepubblica/PArSe)
+[![Build](https://img.shields.io/badge/build-1.3.4-yellowgreen)](https://github.com/SenatoDellaRepubblica/PArSe)
 
 PArSe è un parser del solo articolato dei progetti o disegni di legge parlamentari.
 Sviluppato dal Servizio dell'Informatica del Senato della Repubblica.

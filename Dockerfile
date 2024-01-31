@@ -1,4 +1,4 @@
-FROM python:3.9-slim-buster
+FROM python:3.11-slim-buster
 MAINTAINER Roberto Battistoni <roberto.battistoni@senato.it>
 RUN apt-get update && apt-get upgrade -y && apt-get install -y python3-dev build-essential
 

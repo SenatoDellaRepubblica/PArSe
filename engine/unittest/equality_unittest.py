@@ -14,6 +14,8 @@ class DocumentEquality(TestCase):
     Classe di test per controllare che i documenti XML e di testo siano uguali
     """
 
+    maxDiff = None
+
     @classmethod
     def setUpClass(cls):
         cls.path_in = config.UNITTEST_PATH_IN

@@ -1,19 +1,18 @@
-
-
 import getopt
-import logging
 import os
+import re
 import sys
 from pathlib import Path
 
+from colorama import Fore, init, deinit
 import config
 from config import MARKER_INIZIO_ARTICOLATO
 from engine.grammars.articolato.gram_art_novella import GramArticolatoInNovella as GAN
 from engine.grammars.articolato.gram_articolato import GramArticolato as GA
 from engine.exceptions import ParserException
 from engine.formatter.akn import inxml2akn
-from engine.misc.converter import document_to_text
-from engine.misc.log import set_log, log_uncaught_exceptions
+from engine.misc.converter import document_to_text, taf_to_normal_form
+from engine.misc.log import set_log
 from engine.misc.misc import sub_special_chars, read_text_with_enc, check_cvs_in_path, \
     del_and_make_dir
 from engine.misc.output import print_out, print_out_and_log, init_vars, set_err_context
@@ -28,10 +27,16 @@ def parse_files(path_in: str, path_out: str = ''):
     :return:
     """
 
-    FILES_PROC = 'Dir'
+    FILES_PROC = Fore.MAGENTA + 'File' + Fore.RESET
     set_err_context(FILES_PROC)
     print_out_and_log("**** START PARSING DIR ****")
+    print_out_and_log(f"DIR: {path_in}")
     files = []
+
+    if not os.path.exists(path_in):
+        print_out_and_log(f"Dir '{path_in}' does not exist!")
+        return 1
+
     if os.path.isdir(path_in):
         p = Path(path_in).glob('./**/*')
         files.extend([x for x in p if x.is_file()])
@@ -47,7 +52,7 @@ def parse_files(path_in: str, path_out: str = ''):
         if check_cvs_in_path(str(f)):
             continue
 
-        full_file_name = r"./" + str(f)
+        full_file_name = str(f)
         if config.DEBUG:
             print_out_and_log("==> " + full_file_name)
         ext = f.suffix
@@ -55,11 +60,11 @@ def parse_files(path_in: str, path_out: str = ''):
         try:
             if ext == '.txt':
                 ddl_text = read_text_with_enc(full_file_name)
-            elif ext == '.docx':
-                ddl_text = document_to_text(ext, full_file_name)
-            elif ext == '.doc':
-                ddl_text = document_to_text(ext, full_file_name)
-            elif ext == '.pdf':
+            elif ext.startswith('.htm'):
+                ddl_text = read_text_with_enc(full_file_name)
+                print_out_and_log("=======> Reducing TAF to normal form (1) ... <======")
+                _, ddl_text = taf_to_normal_form(ddl_text)
+            elif ext.startswith('.doc') or ext == '.pdf':
                 ddl_text = document_to_text(ext, full_file_name)
             else:
                 print_out_and_log("File extension not recognized!")
@@ -81,7 +86,7 @@ def parse_string(txt2parse: str, path_out: str = '', out_file_name: str = '', bu
     Esegue il parsing di un testo in formato stringa
 
     :param build_akn:
-    :param txt2parse:
+    :param txt2parse: testo piatto da parsare (può essere HTML se contiene <html)
     :param out_file_name:
     :param path_out:
     :param ret:
@@ -89,22 +94,32 @@ def parse_string(txt2parse: str, path_out: str = '', out_file_name: str = '', bu
     """
 
     init_vars()
-    STRING_PROC = 'Txt_Norm'
+    STRING_PROC = Fore.LIGHTCYAN_EX + 'Txt_Norm' + Fore.RESET
     set_err_context(STRING_PROC)
+
+    if txt2parse.strip().lower().startswith('<html'):
+        print_out_and_log("=======> Reducing TAF to normal form (2) ... <======")
+        _, txt2parse = taf_to_normal_form(txt2parse)
+
     print_out_and_log("=======> Start String Parsing... <======")
     txt2parse = sub_special_chars(txt2parse)
 
     # ====>>>>>>> esegue il parsing del testo
     pa = ParserArticolato(GA, GAN)
     try:
+        decretoLegge_test = re.search(MARKER_INIZIO_ARTICOLATO["decretoLegge"], txt2parse, flags=re.MULTILINE | re.IGNORECASE)
+
         ret_akn, akn = None, None
-        set_err_context('Parse')
-        ret_xml = pa.execute(txt2parse, MARKER_INIZIO_ARTICOLATO, parse_novelle=True)
+        set_err_context(Fore.GREEN + 'Parse' + Fore.RESET)
+        if not decretoLegge_test:
+            ret_xml = pa.execute(txt2parse, MARKER_INIZIO_ARTICOLATO["ddl"], parse_novelle=True)
+        else:
+            ret_xml = pa.execute(txt2parse, MARKER_INIZIO_ARTICOLATO["decretoLegge"], parse_novelle=True)
+
+        # TODO: impostare anche la possibilità di generare direttamente il PDF con FOP e Saxon (bisogna fare un servizio)
         if build_akn:
             set_err_context("AKN_Conv")
             ret_akn, akn, log = inxml2akn(ret_xml)
-
-
 
         set_err_context(STRING_PROC)
 
@@ -139,15 +154,6 @@ def parse_string(txt2parse: str, path_out: str = '', out_file_name: str = '', bu
 
 
 def main(argv):
-    """
-    Main process
-
-    :param argv:
-    :return:
-    """
-
-
-
     try:
         opts, args = getopt.getopt(argv, "hi:o:")
     except getopt.GetoptError:
@@ -156,13 +162,13 @@ def main(argv):
         sys.exit(2)
 
     # Per prima cosa stampa il logo con la versione
-    print_out(config.logo)
+    print_out(Fore.YELLOW + config.logo + Fore.RESET)
 
     path_input = None
     dir_output = None
     for opt, arg in opts:
         if opt == '-h':
-            print_out(config.usage_sample)
+            print_out(Fore.CYAN + config.usage_sample + Fore.RESET)
             return 1
         elif opt == "-i":
             path_input = arg
@@ -188,6 +194,8 @@ def main(argv):
 
 if __name__ == '__main__':
     set_log(config.LOG_LEVEL)
-    #sys.excepthook = log_uncaught_exceptions
+    # sys.excepthook = log_uncaught_exceptions
+    init()
     ret = main(sys.argv[1:])
+    deinit()
     sys.exit(ret)

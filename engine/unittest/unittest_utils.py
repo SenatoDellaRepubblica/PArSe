@@ -119,11 +119,13 @@ def get_parsed_docs():
     # ordinati per ordine lessicografico
     files_names.sort()
 
-    for f_xml, f_txt, f_name in zip(files_xml, files_txt, files_names):
-        with f_xml.open(encoding='utf-8') as file:
+    for f_name in files_names:
+        f_xml = f_name+WORK_XML
+        with open(f_xml, encoding='utf-8') as file:
             f_xml_content = file.read()
 
-        with f_txt.open(encoding='utf-8') as file:
+        f_txt = f_name+WORK_TXT
+        with open(f_txt, encoding='utf-8') as file:
             f_txt_content = file.read()
 
         f_name_final = os.path.basename(f_name)

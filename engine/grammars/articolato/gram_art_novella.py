@@ -32,7 +32,7 @@ class GramArticolatoInNovella(GA):
         TK_EN.CAPO: {
             TK_ATTR.POS: 20,
             TK_ATTR.REGEX: REGEX_CAPO,
-            TK_ATTR.REPL_S: f'<a:Capo>\n<a:Num numero="{GA.REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Capo>\n<a:Num numero="{GA.REPL_CPART}">{GA.REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Capo>\n'
         },
         TK_EN.CAPO_RUBRICA: {
@@ -44,7 +44,7 @@ class GramArticolatoInNovella(GA):
         TK_EN.ART: {
             TK_ATTR.POS: 30,
             TK_ATTR.REGEX: REGEX_ARTICOLO,
-            TK_ATTR.REPL_S: f'<a:Articolo>\n<a:Num numero="{GA.REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Articolo>\n<a:Num numero="{GA.REPL_CPART}">{GA.REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Articolo>\n'
         },
         TK_EN.ART_RUBRICA: {
@@ -56,19 +56,19 @@ class GramArticolatoInNovella(GA):
         TK_EN.COMM: {
             TK_ATTR.POS: 40,
             TK_ATTR.REGEX: REGEX_COMMA,
-            TK_ATTR.REPL_S: f'<a:Comma>\n<a:Num numero="{GA.REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Comma>\n<a:Num numero="{GA.REPL_CPART}">{GA.REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Comma>\n'
         },
         TK_EN.LET: {
             TK_ATTR.POS: 50,
             TK_ATTR.REGEX: GA.REGEX_LETTERA,
-            TK_ATTR.REPL_S: f'<a:Lettera>\n<a:Num numero="{GA.REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Lettera>\n<a:Num numero="{GA.REPL_CPART}">{GA.REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Lettera>\n'
         },
         TK_EN.NUM: {
             TK_ATTR.POS: 60,
             TK_ATTR.REGEX: GA.REGEX_NUMERO,
-            TK_ATTR.REPL_S: f'<a:Numero>\n<a:Num numero="{GA.REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Numero>\n<a:Num numero="{GA.REPL_CPART}">{GA.REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Numero>\n'
         },
         TK_EN.NOV: {

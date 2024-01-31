@@ -164,7 +164,7 @@ def get_text_enc(full_file_name):
     with open(full_file_name, mode='rb') as file:
         rawdata = file.read()
     enc = chardet.detect(rawdata)['encoding']
-    print_out_and_log("Detected Encoding is > " + enc)
+    print_out_and_log("Detected Encoding is: " + enc)
     return enc
 
 

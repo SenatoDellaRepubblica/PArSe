@@ -1,0 +1,9 @@
+<dl:Proprieta>
+    <dl:Protocollo data="{{dic_prop['data']}}" numero="{{dic_prop['num_dl']}}" />
+</dl:Proprieta>
+<dl:Frontespizio idPart="FRONT01" inIndice="FRONTESPIZIO">
+    <dl:NumeroAtto numero="{{dic_dl['num_dl']}}"/>
+    <dl:TipoAtto>DECRETO LEGGE</dl:TipoAtto>
+    <dl:Titolo>{{dic_dl['titolo']}}</dl:Titolo>
+</dl:Frontespizio>
+<dl:RelPres idPart="" inIndice="">{{dic_dl['relazione']}}</dl:RelPres>

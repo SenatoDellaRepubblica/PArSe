@@ -1,7 +1,7 @@
 import os
 import logging
 
-VERSION = "1.1"
+VERSION = "1.3.4"
 
 logo = fr"""
     ____  ___         _____   
@@ -18,13 +18,14 @@ usage_sample = fr"""
 uso: parse_cli.py
 < legge da STDIN
 > scrive su STDOUT
-[-i <input file or directory>]  : file di input
+[-i <input file o directory>]   : file di input
 [-o <output dir>]               : directory di output (opzionale)
 [-h]                            : print this help
 
 Esempi di invocazione:
 
--i c:\mydir\ -o c:\outdir
+-i c:\mydir\ -o c:\outdir\
+-i c:\mydir\myfile.txt -o c:\outdir
 -o c:\outdir < type c:\articolato.txt 
 -i c:\mydir\articolato.txt > c:\articolato.txt
 """
@@ -63,7 +64,10 @@ SOGLIA_MAX_RICORSIONE = 0   # 0 per infinito
 SOGLIA_CHIUSURE = 10_000
 
 # impostazione per l'articolato
-MARKER_INIZIO_ARTICOLATO = r"^\s*?(?:Disegno|Progetto|Proposta)\s+?di\s+?Legge.*$"
+MARKER_INIZIO_ARTICOLATO = {
+    "ddl": r"^\s*?(?:Disegno|Progetto|Proposta)\s+?di\s+?Legge.*$",
+    "decretoLegge": r"E\s*m\s*a\s*n\s*a\W+il\sseguente\sdecreto-legge"
+}
 PRE_TAG = '@@@PRE@@@'
 
 # impostazioni per il debug

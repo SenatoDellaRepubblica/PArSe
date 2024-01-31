@@ -6,6 +6,7 @@ from http import HTTPStatus
 from pathlib import Path
 
 import requests
+from colorama import Fore
 from flask_cors import CORS
 from flask_restx import Api, Resource
 from gevent.pywsgi import WSGIServer
@@ -18,7 +19,9 @@ from flask import render_template_string
 # impostazione di Flask
 from flask import request
 
+from engine.misc.output import print_out
 from parse_cli import parse_string
+from engine.misc.converter import taf_to_normal_form
 from engine.misc.log import set_log
 
 logger = logging.getLogger(__name__)
@@ -41,7 +44,6 @@ api = Api(blueprint,
           contact_email="roberto.battistoni@senato.it",
           doc=f'/{SWAGGER_UI_HTML}')
 
-# app.root_path = os.path.dirname(os.path.abspath(__file__))
 app.register_blueprint(blueprint)
 nsv = api.namespace('', description='Parser articolati')
 
@@ -73,7 +75,7 @@ def get_doc():
             json_dict[
                 'host'] = f"{os.environ['EUREKA_INSTANCE_HOSTNAME']}:{os.environ['EUREKA_INSTANCE_NONSECUREPORT']}"
         except KeyError as e:
-            logger.error("Problema nella variabile di ambiente EUREKA_INSTANCE_HOSTNAME", exc_info=1)
+            logger.error("Problema nella variabile di ambiente EUREKA_INSTANCE_HOSTNAME", e)
             pass
 
         response = Response(json.dumps(json_dict), resp.status_code, headers)
@@ -104,26 +106,25 @@ def parse_web_page():
         return render_template_string(source)
 
 
-# ---------------- GESTIONE DEGLI ERRORI
-
-"""
-@app.errorhandler(404)
-def not_found(error):
-    return make_response(jsonify({'error': 'Pagina non trovata: ' + str(error)}), 404)
-
-
-@app.errorhandler(500)
-def server_error(error):
-    return make_response(jsonify({'error': 'Errore nella parte server: ' + str(error)}), 500)
-"""
-
-
 # ---------------- REST API
+
+@nsv.route('/rest/untaf')
+@nsv.param('testo', 'il testo da parsare')
+@nsv.response(HTTPStatus.OK, "Taf Normalizer")
+class UnTaf(Resource):
+    """
+    Ritorna il testo consolidato
+    :return:
+    """
+
+    def post(self):
+        html_text, _ = taf_to_normal_form(request.form.get("testo"))
+        return make_response(html_text, 200)
+
 
 @nsv.route('/rest/parse')
 @nsv.param('testo', 'il testo da parsare')
 @nsv.response(HTTPStatus.OK, "Computation done")
-# @app.route('/rest/parse', methods=['POST'])
 class ParseRequest(Resource):
 
     def post(self):
@@ -147,7 +148,6 @@ class ParseRequest(Resource):
 
 @nsv.route('/rest/samples')
 @nsv.response(HTTPStatus.OK, "Samples got")
-# @app.route('/rest/samples')
 class GetSamples(Resource):
     """
     Ritorna la lista dei documenti di esempio su cui effettuare il parsing
@@ -159,8 +159,10 @@ class GetSamples(Resource):
         path_in = 'web/static/txt'
         files = []
         if os.path.isdir(path_in):
-            p = Path(path_in).glob('./*.txt')
-            files.extend([x for x in p if x.is_file()])
+            types = ('*.txt', '*.html', '*.htm')
+            for t in types:
+                p = Path(path_in).glob(t)
+                files.extend([x for x in p if x.is_file()])
         else:
             files.append(Path(path_in))
 
@@ -169,13 +171,10 @@ class GetSamples(Resource):
         return make_response(jsonify({'samples': l}), 200)
 
 
-# ---------------- MAIN
-
-# def log_uncaught_exceptions(ex_cls, ex, tb):
-#     app.logger.critical(''.join(traceback.format_tb(tb)))
-#     app.logger.critical('{0}: {1}'.format(ex_cls, ex))
-
 if __name__ == '__main__':
+
+    # Per prima cosa stampa il logo con la versione
+    print_out(Fore.YELLOW + config.logo + Fore.RESET)
 
     logHandler = set_log(logging.DEBUG, noterminal=False)
 
@@ -189,23 +188,21 @@ if __name__ == '__main__':
         env = os.environ['ENV']
         server_port = os.environ['SERVER_PORT']
 
+        if env == 'development':
+            """
+            Web server per lo sviluppo
+            """
+            # app.run(debug=True, host="0.0.0.0", port=5000, threaded = True, ssl_context=context)
+            app.run(debug=False, host="0.0.0.0", port=server_port, threaded=True)
+        elif env == 'production':
+            """
+            Utilizzo un server web con interfaccia WSGI (gevent ma si potrebbe anche mod_wsgi per Apache
+            """
+            http_server = WSGIServer(('0.0.0.0', int(server_port)), app)
+            http_server.serve_forever()
+        else:
+            app.logger.critical(f"Nessun ambiente di esecuzione impostato (ENV={env})")
+
     except KeyError as e:
         app.logger.critical(f'La variabile di ambiente {e} non esiste.')
         quit(1)
-
-    if env == 'development':
-        """
-        Web server per lo sviluppo
-        """
-        # app.run(debug=True, host="0.0.0.0", port=5000, threaded = True, ssl_context=context)
-        app.run(debug=False, host="0.0.0.0", port=server_port, threaded=True)
-    elif env == 'production':
-        """
-        Utilizzo un server web con interfaccia WSGI (gevent ma si potrebbe anche mod_wsgi per Apache
-        """
-        http_server = WSGIServer(('', 5000), app)
-        http_server.serve_forever()
-    else:
-        app.logger.critical(f"Nessun ambiente di esecuzione impostato (ENV={env})")
-
-

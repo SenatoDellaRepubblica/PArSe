@@ -17,6 +17,7 @@ class GramArticolato(GramForParser):
     TOKEN_NOVELLA = 'a:Novella'
     NS = 'a:'
     NUM = 'a:Num'
+    RUBR = 'a:Rubrica'
 
     # ############## ATTENZIONE: SPART e CPART devono sempre esistere nelle espressioni regolari
 
@@ -25,8 +26,11 @@ class GramArticolato(GramForParser):
     # gruppo di cattura per eliminare caratteri al contorno della parte da inserire
     SPART = 'SPART'
 
-    # è il placeholder con il quale sostituire la parte catturata da CPART
+    # placeholder con cui sostituire la parte catturata da CPART
     REPL_CPART = fr'\g<{CPART}>'
+
+    # placeholder con cui sostituire la parte catturata da SPART: qualche volta va conservata come negli articoli, commi e numeri
+    REPL_SPART = fr'\g<{SPART}>'
 
     _REGEX_PREMISSIVI = r'0{0,5}'
 
@@ -69,7 +73,8 @@ class GramArticolato(GramForParser):
     REGEX_NUMERO = fr'^\s*?(?P<{SPART}>(?P<{CPART}>{_INT_REGEX_NUM})\)\s+)'
 
     # Novelle
-    REGEX_NOVELLA = fr'(?P<{SPART}>«(?P<{CPART}>.*?»\s*?[.;]?))'
+    # REGEX_NOVELLA = fr'(?P<{SPART}>«(?P<{CPART}>.*?»\s*?[.;]?))'
+    REGEX_NOVELLA = fr'(?P<{SPART}>«(?P<{CPART}>.*?)»\s*?[.;]?)'
     # matcha la novelle marcate: ATTENZIONE la parentesi esterna serve perché referenziate con gruppo 1 la CPART
     REGEX_NOVELLA_XML = fr'(<{TOKEN_NOVELLA}>(?P<{CPART}>.*?)</{TOKEN_NOVELLA}>)'
 
@@ -90,7 +95,7 @@ class GramArticolato(GramForParser):
         TK_EN.CAPO: {
             TK_ATTR.POS: 20,
             TK_ATTR.REGEX: REGEX_CAPO,
-            TK_ATTR.REPL_S: f'<a:Capo>\n<a:Num numero="{REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Capo>\n<a:Num numero="{REPL_CPART}">{REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Capo>\n'
         },
         TK_EN.CAPO_RUBRICA: {
@@ -102,7 +107,7 @@ class GramArticolato(GramForParser):
         TK_EN.ART: {
             TK_ATTR.POS: 30,
             TK_ATTR.REGEX: REGEX_ARTICOLO,
-            TK_ATTR.REPL_S: f'<a:Articolo>\n<a:Num numero="{REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Articolo>\n<a:Num numero="{REPL_CPART}">{REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Articolo>\n'
         },
         TK_EN.ART_RUBRICA: {
@@ -114,22 +119,23 @@ class GramArticolato(GramForParser):
         TK_EN.COMM: {
             TK_ATTR.POS: 40,
             TK_ATTR.REGEX: REGEX_COMMA,
-            TK_ATTR.REPL_S: f'<a:Comma>\n<a:Num numero="{REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Comma>\n<a:Num numero="{REPL_CPART}">{REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Comma>\n'
         },
         TK_EN.LET: {
             TK_ATTR.POS: 50,
             TK_ATTR.REGEX: REGEX_LETTERA,
-            TK_ATTR.REPL_S: f'<a:Lettera>\n<a:Num numero="{REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Lettera>\n<a:Num numero="{REPL_CPART}">{REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Lettera>\n'
         },
         TK_EN.NUM: {
             TK_ATTR.POS: 60,
             TK_ATTR.REGEX: REGEX_NUMERO,
-            TK_ATTR.REPL_S: f'<a:Numero>\n<a:Num numero="{REPL_CPART}"/>',
+            TK_ATTR.REPL_S: f'<a:Numero>\n<a:Num numero="{REPL_CPART}">{REPL_SPART}</a:Num>',
             TK_ATTR.REPL_C: '</a:Numero>\n'
         },
         # ATTENZIONE: la novella è un elemento che deve conservare anche la chiusura, quindi viene considerato inline
+        # TODO: implementare la logica con il riconoscimento dei caporali bilanciati
         TK_EN.NOV: {
             TK_ATTR.POS: 999,
             TK_ATTR.REGEX: REGEX_NOVELLA,
