@@ -1,4 +1,3 @@
-
 from abc import ABCMeta, abstractmethod
 from enum import Enum
 
@@ -29,6 +28,9 @@ class TK_ATTR(Enum):
     # chiusura
     REPL_C: str = "repl_c"
 
+    # azione semantica (not used)
+    SEMANTIC: str = "semantic"
+
 
 # Grammatica Regolare: espressioni regolare e precedenza tra le espressioni
 
@@ -37,6 +39,7 @@ class TK_EN(Enum):
     Enumerazione dei token
     """
     TITOLO: str = "titolo",
+    TITOLO_RUBRICA: str = "titolo_rubrica",
     CAPO: str = "capo",
     CAPO_RUBRICA: str = "capo_rubrica",
     ART: str = "art",
@@ -56,11 +59,16 @@ class Stato(object):
         """
         Costruttore della classe
         :param tipo_stato: Tipologia dello stato (TK_EN)
-        :param mul: molteplicità dello stato
+        :param mul: molteplicità dello stato (indica se ci può essere un loop, ossia se dallo stato si può trasnsitare nello stesso e quante volte)
         """
         self.tk_type = tipo_stato
+
+        # lista delle transazioni
         self.trans = []
+
+        # stato di provenienza
         self.parent = None
+
         self.mul = mul
 
     def __repr__(self):
@@ -124,6 +132,15 @@ class Transizione(object):
     """
 
     def __init__(self, stato_dst: Stato, txt_post: str, rep: str = '', chiusura: str = '', txt_pre: str = ''):
+        """
+
+        :param stato_dst: stato di destinazione
+        :param txt_post: testo POST da processare
+        :param rep: testo da sostituire
+        :param chiusura:
+        :param txt_pre: testo PREcedente già processato
+        """
+
         self.rep = rep
         self.chiusura = chiusura
         self.txt_post = txt_post

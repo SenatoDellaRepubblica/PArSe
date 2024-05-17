@@ -43,7 +43,7 @@ class PrefazioneParser(object):
 
         dl_test = re.search(r"decreto-legge", self.prefazione, re.IGNORECASE | re.DOTALL)
 
-        # TODO: resta da implementare il parsing dei messaggi e delle relazioni
+        # TODO: resta da implementare il parsing dei messaggi e delle relazioni di Commissione
         # ddlmess_test = re.search(r"attesto +che +il +Senato +della +Repubblica.*?ha +approvato", self.prefazione,
         #                         re.IGNORECASE | re.DOTALL)
 
@@ -167,16 +167,53 @@ class PrefazioneParser(object):
         return self.template_ddlpres.render(dic_prop=self.dic_prop, dic_ddlpres=self.dic_ddlpres)
 
     def _parse_dl_prop(self):
+        """
+        Esegue il parsing delle proprietà del DL
+        :return:
+        """
+
         # TODO: impostare le proprietà del DL
-        self.dic_prop['num_dl'] = "0"
-        self.dic_prop['data'] = "0"
-        return 0
+        m = re.search(
+            r"(?P<DATA>\d{1,2}\s+(?:gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre"
+            r"|novembre|dicembre)\s+\d{4}),\s+n\.\s*(?P<NUM>\d+)",
+            self.prefazione,
+            re.IGNORECASE | re.DOTALL)
+        if m:
+            self.dic_prop['num_dl'] = m.groupdict()["NUM"].strip()
+            self.dic_prop['data'] = re.sub(r"\s+", " ", m.groupdict()["DATA"].strip())
+            return m.end()
+        else:
+            self.dic_prop['num_dl'] = "0"
+            self.dic_prop['data'] = "0"
+            return 0
 
     def _parse_dl(self, lastidx):
         # TODO: per il momento prendo tutta la prefazione
-        self.dic_dl['num_dl'] = "0"
-        self.dic_dl['titolo'] = "N/A"
-        self.dic_dl['relazione'] = self.prefazione
+
+        ptrn_titolo = re.compile(r"(?P<TITOLO>\w.*|(?:\w.*\n)+.*)\.")
+        ptrn_vigenza = re.compile(r"Vigente\s*al\s*:\s*(?P<VIGENZA>\d.*\d)")
+
+        self.dic_dl['num_dl'] = self.dic_prop['num_dl']
+
+        pos = lastidx
+
+        # parsing del titolo del frontespizio
+        m = ptrn_titolo.search(self.prefazione, pos=pos)
+        if m:
+            self.dic_dl['titolo'] = m.groupdict()["TITOLO"].strip()
+            pos = m.end()
+        else:
+            self.dic_dl['titolo'] = "N/A"
+
+        # parsing della vigenza
+        m = ptrn_vigenza.search(self.prefazione, pos=pos)
+        if m:
+            self.dic_dl['vigenza'] = m.groupdict()["VIGENZA"].strip()
+            pos = m.end()
+        else:
+            self.dic_dl['vigenza'] = "N/A"
+
+        self.dic_dl['relazione'] = self.prefazione[pos:]
         return self.template_dl.render(dic_prop=self.dic_prop, dic_dl=self.dic_dl)
 
     def _parse_ddlmess(self, start_pos: int):

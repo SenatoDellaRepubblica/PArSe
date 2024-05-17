@@ -1,7 +1,10 @@
 import os
 import logging
+import sys
 
-VERSION = "1.3.4"
+sys.setrecursionlimit(10 ** 6)
+
+VERSION = "1.3.8.1"
 
 logo = fr"""
     ____  ___         _____   
@@ -30,13 +33,11 @@ Esempi di invocazione:
 -i c:\mydir\articolato.txt > c:\articolato.txt
 """
 
-
-
 # Configurazione dei log
 
 LOG_LEVEL = logging.INFO
 LOG_LJUST = 12
-LOG_PATH= './log/'
+LOG_PATH = './log/'
 
 # variabili globali che memorizzano lo standard output e lo standard error del parser
 
@@ -44,6 +45,12 @@ LOG_PATH= './log/'
 stdout = ''
 stdout_with_context = ''
 std_context = ''
+
+# contesto degli errori o warning da ritornare al chiamante
+
+context_messages = dict()
+context_messages['warnings'] = list()
+context_messages['errors'] = list()
 
 # path del convertitore per DOC
 ANTIWORD = './bin/antiword/antiword'
@@ -58,10 +65,10 @@ UNITTEST_PATH_WORK = '../test/unittest/dataset/work'
 # ---------------- Max e Min del Parser
 
 # soglia massima di ricorsione
-SOGLIA_MAX_RICORSIONE = 0   # 0 per infinito
+SOGLIA_MAX_RICORSIONE = 0  # 0 per infinito
 
 # soglia massima delle chiusure
-SOGLIA_CHIUSURE = 10_000
+SOGLIA_CHIUSURE = 1_000
 
 # impostazione per l'articolato
 MARKER_INIZIO_ARTICOLATO = {
@@ -78,3 +85,5 @@ DEBUG_ESTESO = True
 
 _akntranserv_url = os.getenv('AKNSERV-URL')
 REST_SAXON = _akntranserv_url
+
+

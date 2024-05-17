@@ -3,6 +3,9 @@ import re
 import sys
 from typing import Type
 
+from colorama import Fore
+
+import config
 from config import SOGLIA_CHIUSURE, SOGLIA_MAX_RICORSIONE, DEBUG, DEBUG_ESTESO, MARKER_INIZIO_ARTICOLATO
 from engine.grammars.articolato.gram_art_novella import GramArticolatoInNovella
 from engine.grammars.articolato.gram_articolato import GramArticolato
@@ -14,6 +17,9 @@ from engine.parser.parser_coda import CodaParser
 from engine.parser.parser_prefazione import PrefazioneParser
 from engine.template.tpl_mgr import art_in_senxml_tpl
 
+TAGS_REGEX = r'<[^>]+>'
+CATTURA_GRP = 'CORPO'
+
 logger = logging.getLogger(__name__)
 
 
@@ -21,17 +27,63 @@ class ParserArticolato(object):
     """
     Parser dell'articolato
     """
-    _GRN: Type[GramArticolatoInNovella]
-    _GRA: Type[GramArticolato]
 
-    def __init__(self, gram_articolato: Type[GramArticolato], gram_novella: Type[GramArticolatoInNovella]):
+    # TODO: da cancellare
+    # _GRN: Type[GramArticolatoInNovella]
+    # _GRA: Type[GramArticolato]
+
+    def __init__(self, gram_articolato: Type[GramArticolato], gram_novella: Type[GramArticolatoInNovella],
+                 gram_nov_com_non_num: Type[GramArticolatoInNovella]):
         # Contatore delle ricorsioni
         self._count_ricorsione = 0
         # grammatica
         self._GRA = gram_articolato
         self._GRN = gram_novella
+        self._GRN_CNN = gram_nov_com_non_num
 
-    def _parse_articolato_in_novelle(self, txt: str, flags=re.MULTILINE | re.IGNORECASE | re.DOTALL):
+    def _parse_art_nov_commi_non_numerati(self, parsed_text, flags=re.MULTILINE | re.IGNORECASE | re.DOTALL):
+        """
+        Esegue il parsing di una novella con commi non numerati
+
+        :param parsed_text:
+        :param flags:
+        :return:
+        """
+
+        tags = re.search(TAGS_REGEX, parsed_text, flags)
+        if tags:
+            commi_match = re.search(self._GRN.REGEX_COMMA, parsed_text, flags)
+            if not commi_match:
+                # pulisco l'articolo dai tag e ottengo tutti i commi non numerati
+
+                m = re.search(fr"</{self._GRN.RUBR}>(?P<{CATTURA_GRP}>[^<]+)</{self._GRN.ART}>", parsed_text, flags)
+                if m:
+                    corpo = m.group(CATTURA_GRP)
+                    start = m.start(CATTURA_GRP)  # inizio del corpo catturato
+                    end = m.end(CATTURA_GRP)  # fine del corpo catturato
+
+                    # processa i paragrafi e li numera
+                    nuovo_corpo = str()
+                    cont_comm = 1
+                    for p in corpo.splitlines():
+                        if len(p.strip()) > 0:
+                            # scarta i paragrafi che non sono lettere: a) b) ...
+                            if not re.match(fr"^\w\)\s+", p, flags):
+                                # aggiunge il numero del comma
+                                nuovo_corpo += f'{cont_comm}. {p}\n'
+                                cont_comm += 1
+                            else:
+                                nuovo_corpo += f'{p}\n'
+
+                    parsed_commi_nn = self._parse_articolato(self._GRN_CNN, self._GRN_CNN.get_automata(), nuovo_corpo)
+
+                    # includo i nuovi commi parsati dentro al testo
+                    parsed_text = parsed_text[:start] + parsed_commi_nn + parsed_text[end:]
+
+        return parsed_text
+
+    def _parse_articolato_in_novelle(self, txt: str,
+                                     flags=re.MULTILINE | re.IGNORECASE | re.DOTALL):
         """
         Parsing del testo all'interno delle novelle
 
@@ -39,28 +91,28 @@ class ParserArticolato(object):
         :param flags:
         :return:
         """
-        tipo_stato = self._GRN.get_novella().tk_type
-        items = re.finditer(self._GRN.REGEX_NOVELLA_XML, txt, flags)
+
+        gramm = self._GRN
+
+        tipo_stato = gramm.get_novella().tk_type
+        items = re.finditer(gramm.REGEX_NOVELLA_XML, txt, flags)
         ret = txt
         delta = 0
         for m in items:
 
             if DEBUG and DEBUG_ESTESO:
-                print_out_and_log('*' * 10)
-                print_out_and_log(f'===> Parsing Novella: <NOVELLA>{m.group(self._GRN.CPART)}</NOVELLA>')
+                print_out_and_log(f'===> Parsing Novella: <NOVELLA>{m.group(gramm.CPART)}</NOVELLA>')
 
-            # esegue il parsing all'interno della novella
-            gr_orig = self._GRA
-            self._GRA = self._GRN
-            out = self._parse_articolato(self._GRA.get_automata(), m.group(self._GRN.CPART))
-            self._GRA = gr_orig
+            # esegue il parsing della Novella
+            out = self._parse_articolato(gramm, gramm.get_automata(), m.group(gramm.CPART))
+
+            # se non ci sono commi numerati allora procede con il parsing del corpo
+            out = self._parse_art_nov_commi_non_numerati(out, flags)
 
             # fa il replace e mette in coda il risultato
-            sub = self._GRN.grm_tk_dic[tipo_stato][TK_ATTR.REPL_S].replace(self._GRN.REPL_CPART, out)
+            sub = gramm.grm_tk_dic[tipo_stato][TK_ATTR.REPL_S].replace(gramm.REPL_CPART, out)
             ret = ''.join([ret[:m.start(1) + delta], sub, ret[m.end(1) + delta:]])
             delta += len(sub) - (m.end(1) - m.start(1))
-            if DEBUG and DEBUG_ESTESO:
-                print_out_and_log('*' * 10)
 
         return ret
 
@@ -75,17 +127,6 @@ class ParserArticolato(object):
         :return:
         """
 
-        def wrap_con_caporali(body_nov):
-            """
-            Wrappa la novella con i caporali: se il numero di caporali è dispari aggiunge quello alla fine,
-            altrimenti significa che c'è già
-
-            :param body_nov:
-            :return:
-            """
-
-            return '«' + body_nov
-
         items = re.finditer(self._GRA.REGEX_NOVELLA_XML, txt, flags)
         ret = txt
         delta = 0
@@ -93,9 +134,11 @@ class ParserArticolato(object):
 
             # controlla se all'interno ci sono tag
             body_novella = m.group(self._GRA.CPART)
-            m1 = re.search(r'<[^>]+>', body_novella, flags)
+            m1 = re.search(TAGS_REGEX, body_novella, flags)
+
+            # se non ha trovato TAG all'interno della novella allora ripristina
             if not m1:
-                sub = wrap_con_caporali(body_novella)
+                sub = f"«{body_novella}»"
 
                 if DEBUG and DEBUG_ESTESO:
                     print_out_and_log(f'==> Rollback per Novella (senza articolato): <NOVELLA>{body_novella}</NOVELLA>')
@@ -108,8 +151,8 @@ class ParserArticolato(object):
 
         return ret
 
-    def execute(self, txt: str, mark: str = '',
-                flags=re.MULTILINE | re.IGNORECASE | re.DOTALL, parse_novelle: bool = True) -> str:
+    def main_parse(self, txt: str, mark: str = '',
+                   flags=re.MULTILINE | re.IGNORECASE | re.DOTALL, parse_novelle: bool = True) -> str:
         """
         Esegue il parsing partendo da un marcatore nel testo (cerca l'ultima occorrenza del marcatore)
 
@@ -185,12 +228,15 @@ class ParserArticolato(object):
             return ret
 
         # Individua il marcatore di inizio dell'articolato: euristika debole...
+        if DEBUG:
+            print_out_and_log(Fore.YELLOW + f"Parsing della relazione introduttiva" + Fore.RESET)
 
         prefazione, prefazione_parsed = '', ''
         markers = [i for i in re.finditer(mark, txt, flags=re.MULTILINE | re.IGNORECASE)]
         if markers:
             # prende l'ultimo marcatore individuato
-            print_out_and_log(f"Marcatore di inizio dell'articolato trovato: {markers[-1].group()}")
+            if DEBUG:
+                print_out_and_log(f"Marcatore di inizio dell'articolato trovato: {markers[-1].group()}")
             idx = markers[-1].start()
             # prefazione = f"<![CDATA[{txt[:idx]}]]>"
             prefazione = txt[:idx]
@@ -198,18 +244,22 @@ class ParserArticolato(object):
 
             parser_prefazione = PrefazioneParser(prefazione)
             prefazione_parsed = parser_prefazione.parse_prefazione()
-            xml = self._parse_articolato(self._GRA.get_automata(), txt_post=resto_documento)
+            xml = self._parse_articolato(self._GRA, self._GRA.get_automata(), txt_post=resto_documento)
         else:
             # esegue il solo parsing dell'articolato
-            print_out_and_log("Marcatore di inizio dell'articolato non trovato!")
-            xml = self._parse_articolato(self._GRA.get_automata(), txt_post=CodaParser(txt).cancella_coda('ddl'))
+            if DEBUG:
+                print_out_and_log("Marcatore di inizio dell'articolato non trovato!")
+            xml = self._parse_articolato(self._GRA, self._GRA.get_automata(),
+                                         txt_post=CodaParser(txt).cancella_coda('ddl'))
 
         # esegue il flush della diagnostica
         sys.stderr.flush()
 
         # effettua il parsing all'interno delle novelle
         if parse_novelle:
-            xml = self._elabora_novelle(xml, flags=flags)
+            if DEBUG:
+                print_out_and_log(Fore.YELLOW + "Paring delle novelle" + Fore.RESET)
+            xml = self._parse_novelle(xml, flags=flags)
 
         # mette ALINEA e CORPO
         xml = put_alinea_corpo_h_p(xml, flags=flags)
@@ -233,7 +283,7 @@ class ParserArticolato(object):
 
         return xml
 
-    def _elabora_novelle(self, xml: str, flags) -> str:
+    def _parse_novelle(self, xml: str, flags) -> str:
         """
         Elabora le novelle dentro l'articolato
         :param xml:
@@ -242,14 +292,13 @@ class ParserArticolato(object):
         # testare bene
         m = re.search(r'<[^>]+?>.*</[^>]+?>', xml, flags)
         if m:
-            body = m.group()
-            body = self._parse_articolato_in_novelle(body)
-            body = self._rollback_tag_novelle(body)
-            xml = xml[:m.start()] + body + xml[m.end():]
+            body = self._parse_articolato_in_novelle(m.group())
+            new_body = self._rollback_tag_novelle(body)
+            xml = xml[:m.start()] + new_body + xml[m.end():]
 
         return xml
 
-    def _parse_articolato(self, curr_state: Stato, txt_post: str, txt_pre: str = '',
+    def _parse_articolato(self, gramm: Type[GramArticolato], curr_state: Stato, txt_post: str, txt_pre: str = '',
                           stack_stati_chiusura: list = None) -> str:
         """
         Automa interno che procede sugli stati definiti nella grammatica
@@ -258,10 +307,11 @@ class ParserArticolato(object):
 
         Si mangiano caratteri e si decide in che stato andare a seconda della grammatica definita.
 
+        :param gramm Grammatica da utilizzare (specializzate di self.GA)
         :param stack_stati_chiusura: stack degli stati processari
         :param curr_state: stato corrente
-        :param txt_pre: testo processato
-        :param txt_post: testo da processare
+        :param txt_pre: testo PREcente già processato
+        :param txt_post: testo POST da processare
         :return:
         """
 
@@ -273,24 +323,24 @@ class ParserArticolato(object):
 
         def get_chiusura_stato(stato_end: Stato) -> str:
             """
-            Calcola la lista di token da chiudere quando si transita
-            da uno stato con posizione più grande rispetto ad uno con posizione più piccola (si risale l'albero)
-            :stato_start: stato di provenienza
-            :stato_end: stato di arrivo
+            Calcola la lista di token da chiudere quando si transita da uno stato con posizione più grande
+            rispetto a uno con posizione più piccola (si risale l'albero)
+
+            :param stato_end: stato di arrivo
             :return:
             """
 
             closure = ''
             if len(stack_stati_chiusura) > 0:
                 stato_start = stack_stati_chiusura[-1]
-                start = self._GRA.grm_tk_dic[stato_start.tk_type]
-                end = self._GRA.grm_tk_dic[stato_end.tk_type]
+                start = gramm.grm_tk_dic[stato_start.tk_type]
+                end = gramm.grm_tk_dic[stato_end.tk_type]
                 if end[TK_ATTR.POS] <= start[TK_ATTR.POS]:
 
                     if DEBUG and DEBUG_ESTESO:
                         print_out_and_log(
-                            f'[Closure] Start token: {str(stato_start)} --> End token: {str(stato_end)}')
-                        print_out_and_log(f'[Closure] Tokens stack: {stack_stati_chiusura}')
+                            f'[Closure] Start token: {Fore.MAGENTA}{str(stato_start)} --> End token: {str(stato_end)}{Fore.RESET}')
+                        print_out_and_log(f'[Closure] Tokens stack: {Fore.MAGENTA}{stack_stati_chiusura}{Fore.RESET}')
 
                     cont = 0
                     # Comincio a ciclare per tutto lo stack fino a che non raggiungo lo stato di fine
@@ -299,7 +349,7 @@ class ParserArticolato(object):
                         if start[TK_ATTR.REPL_C] and end[TK_ATTR.POS] <= start[TK_ATTR.POS]:
                             try:
                                 stato_start = stack_stati_chiusura.pop()
-                                start = self._GRA.grm_tk_dic[stato_start.tk_type]
+                                start = gramm.grm_tk_dic[stato_start.tk_type]
                             except IndexError:
                                 stato_start = None
 
@@ -308,19 +358,31 @@ class ParserArticolato(object):
                             closure += start[TK_ATTR.REPL_C]
                             # closure = ''.join((closure, start[TK_ATTR.REPL_C]))
                             if DEBUG and DEBUG_ESTESO:
-                                print_out_and_log(f'[Closure] Final value: "{closure.strip()}"')
+                                print_out_and_log(f'[Closure] Final value: {Fore.MAGENTA}{closure.strip()}{Fore.RESET}')
 
                         if stato_start is None or \
                                 not stack_stati_chiusura or \
                                 stato_start is stato_end:
                             break
 
-                        # messaggio di debug per superamento della soglia di sicurezza
+                        """
+                        Messaggio di debug per superamento della soglia di sicurezza
+                        
+                        Questo messaggio viene visualizzato quando si cerca di chiudere i tag con una gerarchia che non è quella corretta. Quindi
+                        da un token gerarchicamente più in alto verso uno più in basso, invece che da un token più in basso verso uno più in alto.
+                        Ad esempio, se dopo il comma si risale ad una lettera, questo non è
+                        corretto perché dal comma si risale verso l'articolo e non la lettera
+                        """
+
                         cont += 1
                         if cont >= SOGLIA_CHIUSURE:
                             print_out_and_log(
-                                f'[Closure] loop per Start: {str(stato_start)} --> End: {str(stato_end)}')
-                            raise ParserException("=====> Maximum threshold reached for the closure")
+                                f'[Closure]{Fore.RED}[Errore]{Fore.RESET} Lo stato iniziale transita in uno stato finale non superiore gerarchicamente! Da {str(stato_start)} si sta risalendo a {str(stato_end)}')
+
+                            # TODO: invece dell'eccezione si ritorna comunque la chiusura trovata, anche se scorretta; inviare in qualche modo un errore
+                            # raise ParserException(f"=====> {Fore.RED}Soglia massima raggiunta per le chiusure!!!{Fore.RESET}")
+                            config.context_messages['warnings'].append("Soglia massima raggiunta per le chiusure!!!")
+                            break
 
             return closure
 
@@ -334,16 +396,16 @@ class ParserArticolato(object):
             :return: la coppia aggiornata dei valori txt_processed, text_todo
             """
 
-            current_tk = self._GRA.grm_tk_dic[state_to_match.tk_type]
+            current_tk = gramm.grm_tk_dic[state_to_match.tk_type]
             # cerca il prossimo token dalla grammatica
-            match = re.search(current_tk[TK_ATTR.REGEX], t_post, self._GRA.FLAGS)
+            match = re.search(current_tk[TK_ATTR.REGEX], t_post, gramm.FLAGS)
             if match:
                 # compone la parte da sostituire
-                sub = current_tk[TK_ATTR.REPL_S].replace(self._GRA.REPL_CPART, match.group(self._GRA.CPART)).replace(
-                    self._GRA.REPL_SPART, match.group(self._GRA.SPART))
-                pre = t_post[:match.start(self._GRA.SPART)]
+                sub = current_tk[TK_ATTR.REPL_S].replace(gramm.REPL_CPART, match.group(gramm.CPART)).replace(
+                    gramm.REPL_SPART, match.group(gramm.SPART))
+                pre = t_post[:match.start(gramm.SPART)]
 
-                t_post = t_post[match.end(self._GRA.SPART):]
+                t_post = t_post[match.end(gramm.SPART):]
                 t_pre = ''.join([t_pre, pre])
 
                 trans = Transizione(state_to_match, t_post, sub, '', t_pre)
@@ -368,17 +430,23 @@ class ParserArticolato(object):
             return chosen_t
 
         # XXX: ================== PROCEDURA PRINCIPALE ==============================
-        # inizializza le liste di supporto
-        trans_list = []
+
+        if DEBUG and curr_state == gramm.get_automata():
+            print_out_and_log(Fore.YELLOW + f"Parsing dell\'Articolato (gramm: {gramm})" + Fore.RESET)
 
         # Se non sono all'inizio o alla fine allora processo le transizioni
-        if curr_state is not self._GRA.E:
+        if curr_state is not gramm.E:
+
+            # inizializza le liste di supporto
+            trans_list = []
 
             """
             Se sono arrivato in questo stato devo controllare se la molteplicità
             dello stato definita nella grammatica è multipla (ovvero >1). In questo caso
             allora devo fare il check con lo stesso stato in cui sono per inserirlo nelle possibili
             transizioni
+            
+            Popolo la lista delle possibili transizioni
             """
             # if curr_state is not S and curr_state.mul == INFINITE:
             if curr_state.mul == INFINITE:
@@ -387,21 +455,27 @@ class ParserArticolato(object):
 
             """
             Match degli stati destinazione delle transizioni: solo se ci sono transizioni
+            
+            Popolo la lista delle possibili transizioni (partendo dalla precedente)
             """
             if len(curr_state.trans) > 0:
                 # determina la lista delle possibili transizioni eseguendo il match
                 for stato_dst in curr_state.trans:
+                    # TODO: ma perché questo test? Il tipo di token esiste sempre...
                     if stato_dst.tk_type:
                         trans_list = match_next_stato(stato_dst, txt_pre, txt_post, trans_list)
 
             # ritorna la transizione più conveniente, ovvero quella che ha un match più vicino
             next_trans = calc_next_trans(trans_list)
 
+            # ATTENZIONE: va lasciata la riga seguente, altrimenti c'è occupazione di memoria mostruosa nella ricorsione
+            trans_list = []
+
             # esegue il passo ricorsivo sulla transizione scelta
-            if next_trans is not None and (
-                    self._count_ricorsione < SOGLIA_MAX_RICORSIONE or SOGLIA_MAX_RICORSIONE == 0):
+            if (next_trans is not None and
+                    (self._count_ricorsione < SOGLIA_MAX_RICORSIONE or SOGLIA_MAX_RICORSIONE == 0)):
                 if DEBUG:
-                    print_out_and_log(f'==> Next token matched: "{str(next_trans)}"')
+                    print_out_and_log(f'==> Next token matched: {Fore.MAGENTA}{str(next_trans)}{Fore.RESET}')
 
                 # determina la chiusura della transizione
                 next_trans.chiusura = get_chiusura_stato(next_trans.stato_dst)
@@ -410,19 +484,19 @@ class ParserArticolato(object):
                 Appende lo stato di destinazione allo stack degli stati:
                 solo se lo stato di destinazione ha un REPL_C non vuoto
                 """
-                next_stato = self._GRA.grm_tk_dic[next_trans.stato_dst.tk_type]
+                next_stato = gramm.grm_tk_dic[next_trans.stato_dst.tk_type]
                 if next_stato[TK_ATTR.REPL_C]:
                     stack_stati_chiusura.append(next_trans.stato_dst)
 
                 # aggiorna il txt_pre con la chiusura seguita dalla sostituzione del token trovato
                 new_txt_pre = ''.join([next_trans.txt_pre, next_trans.chiusura, next_trans.rep])
 
-                return self._parse_articolato(next_trans.stato_dst, next_trans.txt_post, new_txt_pre,
+                return self._parse_articolato(gramm, next_trans.stato_dst, next_trans.txt_post, new_txt_pre,
                                               stack_stati_chiusura)
 
         if DEBUG and DEBUG_ESTESO:
-            print_out_and_log('[Closure] Final dccument closure applied')
-        chiusura = get_chiusura_stato(self._GRA.get_higher_state())
+            print_out_and_log('[Closure] Final document closure applied')
+        chiusura = get_chiusura_stato(gramm.get_higher_state())
 
         # esco dalla ricorsione restituendo il testo marcato
         if DEBUG:

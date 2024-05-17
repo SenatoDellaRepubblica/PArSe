@@ -1,18 +1,16 @@
 import logging
 import os
-import json
 from http import HTTPStatus
 
 from pathlib import Path
 
-import requests
 from colorama import Fore
 from flask_cors import CORS
 from flask_restx import Api, Resource
 from gevent.pywsgi import WSGIServer
 
 import config
-from flask import Flask, Blueprint, Response
+from flask import Flask, Blueprint, Response, redirect
 from flask import make_response, jsonify, send_from_directory, url_for
 from flask import render_template_string
 
@@ -24,63 +22,34 @@ from parse_cli import parse_string
 from engine.misc.converter import taf_to_normal_form
 from engine.misc.log import set_log
 
+PRODUCTION = 'production'
+
+DEVELOPMENT = 'development'
+
 logger = logging.getLogger(__name__)
 app = Flask(__name__, static_folder='web/static', static_url_path='/res')
 app.root_path = os.path.dirname(os.path.abspath(__file__))
 
-SWAGGER_UI_HTML = "swagger-ui.html"
-SWAGGER_JSON = '/swagger.json'
-http_methods = ['put', 'get', 'del', 'post', 'head']
+SWAGGER_UI_HTML = "swagger-ui"
 
 CORS(app)
-blueprint = Blueprint('api', __name__, url_prefix='/')
+blueprint = Blueprint('api', __name__, url_prefix='/rest')
 
 # Swagger
 api = Api(blueprint,
-          title="PyPArSe",
-          description="Servizio",
+          title="PArSe",
+          description="Servizio per il parsing degli articolati di legge",
           contact="Roberto Battistoni",
           version=config.VERSION,
           contact_email="roberto.battistoni@senato.it",
-          doc=f'/{SWAGGER_UI_HTML}')
+          doc=f'/{SWAGGER_UI_HTML}/index.html')
 
 app.register_blueprint(blueprint)
 nsv = api.namespace('', description='Parser articolati')
 
-
-@app.route("/v2/api-docs", methods=['GET'])
-def get_doc():
-    """
-    Serve per la redirect della documentazione swagger
-    """
-    if request.method == 'GET':
-        url = url_for(api.endpoint('specs'), _external=True)
-        logger.debug(f"url: {url}")
-
-        resp = requests.get(url, timeout=20)
-        # excluded_headers = ['content - encoding', 'content - length', 'transfer - encoding', 'connection']
-        excluded_headers = []
-        headers = [(name, value) for (name, value) in resp.raw.headers.items() if
-                   name.lower() not in excluded_headers]
-
-        json_dict = json.loads(resp.content)
-
-        # Aggiunge le vendor extensions
-        json_dict['info']['x-area'] = 'Testi'
-        json_dict['info']['x-tipologia'] = 'Servizio'
-        json_dict['info']['x-referente'] = 'Roberto Battistoni'
-
-        # aggiungo il campo host
-        try:
-            json_dict[
-                'host'] = f"{os.environ['EUREKA_INSTANCE_HOSTNAME']}:{os.environ['EUREKA_INSTANCE_NONSECUREPORT']}"
-        except KeyError as e:
-            logger.error("Problema nella variabile di ambiente EUREKA_INSTANCE_HOSTNAME", e)
-            pass
-
-        response = Response(json.dumps(json_dict), resp.status_code, headers)
-        return response
-
+@app.route('/')
+def home():
+    return redirect("/app")
 
 @app.route('/favicon.ico')
 def favicon():
@@ -108,7 +77,7 @@ def parse_web_page():
 
 # ---------------- REST API
 
-@nsv.route('/rest/untaf')
+@nsv.route('/untaf')
 @nsv.param('testo', 'il testo da parsare')
 @nsv.response(HTTPStatus.OK, "Taf Normalizer")
 class UnTaf(Resource):
@@ -122,7 +91,7 @@ class UnTaf(Resource):
         return make_response(html_text, 200)
 
 
-@nsv.route('/rest/parse')
+@nsv.route('/parse')
 @nsv.param('testo', 'il testo da parsare')
 @nsv.response(HTTPStatus.OK, "Computation done")
 class ParseRequest(Resource):
@@ -133,6 +102,8 @@ class ParseRequest(Resource):
         :return:
         """
         if request.json and 'testo' in request.json:
+
+            # TODO: prevedere un minimo di sanitizzazione...
             testo = request.json['testo']
 
             # TODO: rendere parametrico la possibilità di escludere AKN
@@ -146,7 +117,7 @@ class ParseRequest(Resource):
                              200)
 
 
-@nsv.route('/rest/samples')
+@nsv.route('/samples')
 @nsv.response(HTTPStatus.OK, "Samples got")
 class GetSamples(Resource):
     """
@@ -156,7 +127,15 @@ class GetSamples(Resource):
 
     def get(self):
 
+        try:
+            env = os.environ['ENV']
+        except KeyError as e:
+            app.logger.critical(f'La variabile di ambiente {e} non esiste.')
+
         path_in = 'web/static/txt'
+        if env != DEVELOPMENT:
+            path_in = 'web/static/txt_prod'
+
         files = []
         if os.path.isdir(path_in):
             types = ('*.txt', '*.html', '*.htm')
@@ -188,13 +167,13 @@ if __name__ == '__main__':
         env = os.environ['ENV']
         server_port = os.environ['SERVER_PORT']
 
-        if env == 'development':
+        if env == DEVELOPMENT:
             """
             Web server per lo sviluppo
             """
             # app.run(debug=True, host="0.0.0.0", port=5000, threaded = True, ssl_context=context)
-            app.run(debug=False, host="0.0.0.0", port=server_port, threaded=True)
-        elif env == 'production':
+            app.run(debug=False, host="0.0.0.0", port=int(server_port), threaded=True)
+        elif env == PRODUCTION:
             """
             Utilizzo un server web con interfaccia WSGI (gevent ma si potrebbe anche mod_wsgi per Apache
             """

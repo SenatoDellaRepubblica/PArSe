@@ -14,7 +14,7 @@ def inxml2akn(xml: str) -> Tuple[bool, any, any]:
         files = {'file_xml': xml,
                  'file_xslt': open("./engine/formatter/DDL2Akoma.xsl", 'rb')}
 
-        print_out_and_log(f"Trasformazione XSLT per formato Akoma Ntoso: {url}")
+        print_out_and_log(f"Trasformazione XSLT per formato Akoma Ntoso")
         try:
             res = requests.post(url, files=files, timeout=10) # 10 secondi di timeout
             print_out_and_log(f"Log Trasformazione: {res.json()['log']}")

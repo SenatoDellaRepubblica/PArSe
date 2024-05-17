@@ -9,6 +9,7 @@ import config
 from config import MARKER_INIZIO_ARTICOLATO
 from engine.grammars.articolato.gram_art_novella import GramArticolatoInNovella as GAN
 from engine.grammars.articolato.gram_articolato import GramArticolato as GA
+from engine.grammars.articolato.gram_com_non_num import GramCommiNonNumerati as GAN_CNN
 from engine.exceptions import ParserException
 from engine.formatter.akn import inxml2akn
 from engine.misc.converter import document_to_text, taf_to_normal_form
@@ -100,25 +101,27 @@ def parse_string(txt2parse: str, path_out: str = '', out_file_name: str = '', bu
     if txt2parse.strip().lower().startswith('<html'):
         print_out_and_log("=======> Reducing TAF to normal form (2) ... <======")
         _, txt2parse = taf_to_normal_form(txt2parse)
+        if config.DEBUG and config.DEBUG_ESTESO:
+            print_out_and_log(f"Testo piatto: {txt2parse}")
 
     print_out_and_log("=======> Start String Parsing... <======")
     txt2parse = sub_special_chars(txt2parse)
 
     # ====>>>>>>> esegue il parsing del testo
-    pa = ParserArticolato(GA, GAN)
+    pa = ParserArticolato(GA, GAN, GAN_CNN)
     try:
         decretoLegge_test = re.search(MARKER_INIZIO_ARTICOLATO["decretoLegge"], txt2parse, flags=re.MULTILINE | re.IGNORECASE)
 
         ret_akn, akn = None, None
         set_err_context(Fore.GREEN + 'Parse' + Fore.RESET)
         if not decretoLegge_test:
-            ret_xml = pa.execute(txt2parse, MARKER_INIZIO_ARTICOLATO["ddl"], parse_novelle=True)
+            ret_xml = pa.main_parse(txt2parse, MARKER_INIZIO_ARTICOLATO["ddl"], parse_novelle=True)
         else:
-            ret_xml = pa.execute(txt2parse, MARKER_INIZIO_ARTICOLATO["decretoLegge"], parse_novelle=True)
+            ret_xml = pa.main_parse(txt2parse, MARKER_INIZIO_ARTICOLATO["decretoLegge"], parse_novelle=True)
 
         # TODO: impostare anche la possibilità di generare direttamente il PDF con FOP e Saxon (bisogna fare un servizio)
         if build_akn:
-            set_err_context("AKN_Conv")
+            set_err_context(Fore.LIGHTBLUE_EX + "AKN_Conv" + Fore.RESET)
             ret_akn, akn, log = inxml2akn(ret_xml)
 
         set_err_context(STRING_PROC)
